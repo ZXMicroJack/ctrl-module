@@ -1,4 +1,11 @@
 #!/bin/bash
+if [ "`whoami`" != "root" ]; then
+	echo Elevating to root
+
+	sudo MYHOME=~ $0
+	exit 0
+fi
+
 if [ ! -e ./tmp/card.32 ]; then
 	mkdir tmp &> /dev/null
 	mount -t tmpfs tmpfs ./tmp

@@ -44,7 +44,11 @@ void LoadInitialRom(void) {
 	OSD_Puts("Loading ROMs...\n...from /" SYSTEM_DIR "/" ROMPAK "...");
 	if (DirCd(SYSTEM_DIR)) {
 		LoadROM(ROMPAK);
-	} else OSD_Puts("Failed to change directory");
+#ifdef ROMPAK2
+		LoadROM(ROMPAK2);
+#endif
+    
+  } else OSD_Puts("Failed to change directory");
 }
 #endif
 
@@ -472,7 +476,11 @@ int main(int argc,char **argv)
 		// UartLoop();
 
 		HW_HOST(REG_HOST_SW)=MENU_TOGGLE_VALUES;	// Send the new values to the hardware.
-		// dipsw=MENU_CYCLE_VALUE(&topmenu[1]);	// Take the value of the TestPattern cycle menu entry.
+		DiskSetWp(0, (MENU_TOGGLE_VALUES & 0x40) == 0x40 ? 1 : 0);
+#ifdef NR_DISKS > 1
+    DiskSetWp(1, (MENU_TOGGLE_VALUES & 0x80) == 0x80 ? 1 : 0);
+#endif
+    // dipsw=MENU_CYCLE_VALUE(&topmenu[1]);	// Take the value of the TestPattern cycle menu entry.
 //		HW_HOST(REG_HOST_SCALERED)=MENU_SLIDER_VALUE(&rgbmenu[0]);
 
 		// If the menu's visible, prevent keystrokes reaching the host core.

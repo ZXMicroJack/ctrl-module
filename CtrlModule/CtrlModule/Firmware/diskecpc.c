@@ -9,91 +9,117 @@
 #define debug(a) {}
 #endif
 
-#define MAX_TRACKS 43
-static unsigned char ecpcTrackSize[MAX_TRACKS];
-static int ecpcTrackNr = 0;
+#define MAX_TRACKS 80
+#define MAX_SIDES   2
+static unsigned char ecpcTrackSize[NR_DISKS][MAX_TRACKS*MAX_SIDES];
+static int ecpcTrackNr[NR_DISKS] = {0};
+static char ecpcSides[NR_DISKS] = {0};
 
 #define MAX_SECTORS 10
-static unsigned char ecpcStatus[MAX_SECTORS][8]; //c h r n st1 st2 len
-static unsigned int ecpcTrackOffset = 0;
+static unsigned char ecpcStatus[NR_DISKS][MAX_SIDES][MAX_SECTORS][8]; //c h r n st1 st2 len
+static unsigned int ecpcTrackOffset[NR_DISKS][MAX_SIDES] = {0};
 
-static int ecpcSectorNr = 0;
-static int ecpcCurrTrack = -1;
-static int ecpcExtended = 0;
+static int ecpcSectorNr[NR_DISKS] = {0};
+static int ecpcCurrTrack[NR_DISKS] = {-1};
+static int ecpcExtended[NR_DISKS] = {0};
 
 const char trackInfoId[] = "Track-Info";
-static int DiskMoveTrackECPC(int dsk, int trk) {
-  int i, blk = 1;
+int DiskSeekECPC(int dsk, int trk) {
+  int i, blk, j;
   unsigned char *ptr;
   
   // already at this track?
-  if (trk == ecpcCurrTrack) {
+  if (trk == ecpcCurrTrack[dsk]) {
     return 1;
   }
   
   // locate track
-  for (i=0; i<trk; i++) {
-    blk += ecpcTrackSize[i];
-  }
-  ecpcTrackOffset = blk + 1;
-  
-  // read track record
-  sd_read_sector(diskLba[dsk][blk>>1], sector_buffer);
-  ptr = ((blk&1) == 1) ? &sector_buffer[256] : sector_buffer;
-  
-  // check track record
-//   hexdump(ptr, 256);
-  if (compare(ptr, trackInfoId, 10)) {
-    // not a track record
-    debug(("Good track record\n"));
-    return 0;
-  }
-  
-  // read sector sizes
-  ecpcSectorNr = ptr[0x15];
-  for (i=0; i<ecpcSectorNr; i++) {
-    memcpy(ecpcStatus[i], &ptr[0x18+i*8], 8);
-    if (!ecpcExtended) {
-      ecpcStatus[i][6] = 0x00;
-      ecpcStatus[i][7] = ptr[0x14];
+  for (j=0; j<ecpcSides[dsk]; j++) {
+    blk = 1;
+    for (i=0; i<(trk*ecpcSides[dsk]+j); i++) {
+      blk += ecpcTrackSize[dsk][i];
+    }
+    ecpcTrackOffset[dsk][j] = blk + 1;
+    
+    // read track record
+    sd_read_sector(diskLba[dsk][blk>>1], sector_buffer);
+    ptr = ((blk&1) == 1) ? &sector_buffer[256] : sector_buffer;
+    
+    // check track record
+  //   hexdump(ptr, 256);
+    if (compare(ptr, trackInfoId, 10)) {
+      // not a track record
+      debug(("Good track record\n"));
+      return 0;
+    }
+    
+    // read sector sizes
+    ecpcSectorNr[dsk] = ptr[0x15];
+    for (i=0; i<ecpcSectorNr[dsk]; i++) {
+      memcpy(ecpcStatus[dsk][j][i], &ptr[0x18+i*8], 8);
+      if (!ecpcExtended[dsk]) {
+        ecpcStatus[dsk][j][i][6] = 0x00;
+        ecpcStatus[dsk][j][i][7] = ptr[0x14];
+      }
     }
   }
 //   for (; i<MAX_SECTORS; i++) {
 //     memset(ecpcStatus[i], 0xff, 8);
 //   }
-  ecpcCurrTrack = trk;
+  ecpcCurrTrack[dsk] = trk;
   
   return 1;
 }
 
+int DiskGetSectorIdECPC(int dsk, int ndx, int side) {
+  if (ndx < 0) return ecpcSectorNr[dsk];
+  if (ndx < ecpcSectorNr[dsk]) return ecpcStatus[dsk][side][ndx][2] | (ecpcStatus[dsk][side][ndx][1] << 8);
+  return -1;
+}
+
 //TODO only supports 512 byte sectors at the moment
-static int DiskReadWriteSectorECPC(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect, int read) {
+static int DiskReadWriteSectorECPC(int dsk, int side, int track, unsigned char sector_id,
+                                   unsigned char *sect, unsigned char *md, int read)  {
   unsigned long offset = 0;
-  int i;
+  int i, s;
   
+#if 0
   // move track
-  if (!DiskMoveTrackECPC(dsk, track)) {
+  if (!DiskSeekECPC(dsk, track)) {
     // failed
     return 0;
   }
-  
+#endif
+
   // find sector while adding offset
-  for (i=0; i<ecpcSectorNr; i++) {
-    if (ecpcStatus[i][2] == sector_id) {
+  s = side >> 7;
+  side &= 0x7f;
+  
+  for (i=0; i<ecpcSectorNr[dsk]; i++) {
+    if (ecpcStatus[dsk][s][i][2] == sector_id && ecpcStatus[dsk][s][i][1] == side) {
       break;
     } else {
-      offset += (ecpcStatus[i][7]<<8)|ecpcStatus[i][6];
+      offset += (ecpcStatus[dsk][s][i][7]<<8)|ecpcStatus[dsk][s][i][6];
     }
   }
   
   // was sector found?
-  if (i < ecpcSectorNr) {
+  if (i < ecpcSectorNr[dsk]) {
     unsigned char *ptr;
     int sectOffset = 0;
     
-    unsigned int blk = ecpcTrackOffset + (offset >> 8);
+    unsigned int blk = ecpcTrackOffset[dsk][s] + (offset >> 8);
     unsigned int blkRead = 0;
     unsigned long thisBlk;
+    
+    if (md) {
+      md[0] = ecpcStatus[dsk][s][i][0];
+      md[1] = ecpcStatus[dsk][s][i][1];
+      md[2] = ecpcStatus[dsk][s][i][2];
+      md[3] = ecpcStatus[dsk][s][i][3];
+      md[4] = ecpcStatus[dsk][s][i][4];
+      md[5] = ecpcStatus[dsk][s][i][5];
+    }
   
     do {
       // read track record
@@ -122,17 +148,17 @@ static int DiskReadWriteSectorECPC(int dsk, int side, int track, unsigned char s
   } else return 0;
 }
 
-int DiskReadSectorECPC(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect) {
-  return DiskReadWriteSectorECPC(dsk, side, track, sector_id, sect, 1);
+int DiskReadSectorECPC(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect, unsigned char *md) {
+  return DiskReadWriteSectorECPC(dsk, side, track, sector_id, sect, md, 1);
 }
 
 int DiskWriteSectorECPC(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect) {
-  return DiskReadWriteSectorECPC(dsk, side, track, sector_id, sect, 0);
+  return DiskReadWriteSectorECPC(dsk, side, track, sector_id, sect, NULL, 0);
 }
 
 static const char ecpcDiskID[]   = "EXTENDED";
 static const char cpcemuDiskID[] = "MV - CPC";
-int DiskTryECPC(int i, int len, unsigned char *sector_id) {
+int DiskTryECPC(int i, int len) {
   int n;
   
   // read first block
@@ -142,23 +168,21 @@ int DiskTryECPC(int i, int len, unsigned char *sector_id) {
   if (!compare(ecpcDiskID, sector_buffer, 8)) {
     // yes it's an extended crc disk
     debug(("It's an extended disk\n"));
-    ecpcExtended = 1;
-    ecpcTrackNr = sector_buffer[0x30];
+    ecpcExtended[i] = 1;
+    ecpcTrackNr[i] = sector_buffer[0x30];
+    ecpcSides[i] = sector_buffer[0x31];
 
-    if (ecpcTrackNr > MAX_TRACKS) {
+    if (ecpcTrackNr[i] > MAX_TRACKS) {
       debug(("Too many tracks\n"));
       return 0;
     }
 
     // note track sizes
-    for (n=0; n<ecpcTrackNr; n++) {
-      ecpcTrackSize[n] = sector_buffer[0x34+n];
+    for (n=0; n<(ecpcTrackNr[i]*ecpcSides[i]); n++) {
+      ecpcTrackSize[i][n] = sector_buffer[0x34+n];
     }
     
-    ecpcCurrTrack = -1;
-    DiskMoveTrackECPC(i, 0);
-    
-    *sector_id = ecpcStatus[0][2];
+    ecpcCurrTrack[i] = -1;
     
     return 1;
   }
@@ -167,23 +191,20 @@ int DiskTryECPC(int i, int len, unsigned char *sector_id) {
   if (!compare(cpcemuDiskID, sector_buffer, 8)) {
     // yes it's an extended crc disk
     debug(("It's a standard CPCEMU disk\n"));
-    ecpcTrackNr = sector_buffer[0x30];
-    ecpcExtended = 0;
+    ecpcTrackNr[i] = sector_buffer[0x30];
+    ecpcSides[i] = sector_buffer[0x31];
+    ecpcExtended[i] = 0;
 
-    if (ecpcTrackNr > MAX_TRACKS) {
+    if (ecpcTrackNr[i] > MAX_TRACKS) {
       debug(("Too many tracks\n"));
       return 0;
     }
 
     // note track sizes
-    for (n=0; n<ecpcTrackNr; n++) {
-//       ecpcTrackSize[n] = sector_buffer[0x34+n];
-      ecpcTrackSize[n] = sector_buffer[0x33];
+    for (n=0; n<(ecpcTrackNr[i]*ecpcSides[i]); n++) {
+      ecpcTrackSize[i][n] = sector_buffer[0x33];
     }
-    
-    DiskMoveTrackECPC(i, 0);
-    
-    *sector_id = ecpcStatus[0][2];
+    ecpcCurrTrack[i] = -1;
     
     return 1;
   }

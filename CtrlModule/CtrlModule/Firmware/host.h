@@ -4,6 +4,11 @@
 #define HOSTSTATE 0xFFFFFFF0
 #define DEBUGSTATE 0xFFFFFFF4
 #define DEBUGSTATE2 0xFFFFFFF8
+#ifndef HW_TIMER
+#define HW_TIMER() (*(volatile unsigned int *)0xFFFFFFFC)
+#endif
+
+
 
 #define HOSTMEM  0xA0000000
 #define HOSTMEM_TAPELOAD    HOSTMEM

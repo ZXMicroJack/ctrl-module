@@ -44,6 +44,7 @@ int isCPM[NR_DISKS];
 
 // #ifdef AMSTRADCPC
 #define STS(side, track, sector) ((((side)&1)<<15)|(((track)&0x7f)<<8)|((sector)&0xff))
+#define STSX(side, head, track, sector) ((((side)&1)<<23)|(((head)&0x7f)<<15)|(((track)&0x7f)<<8)|((sector)&0xff))
 // #else
 // #define STS(side, track, sector) ((((side)&1)<<12)|(((track)&0x7f)<<5)|((sector)&0x1f))
 // #endif
@@ -82,7 +83,7 @@ int DiskWriteSectorRAW(int dsk, int side, int track, unsigned char sector_id, un
   return sd_write_sector(lba, sector_buffer);
 }
 
-int DiskReadSectorRAW(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect) {
+int DiskReadSectorRAW(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect, unsigned char *md) {
   unsigned long blk = DTStoBlock(dsk, side, track, sector_id);
   printf("%d/%d/%d\n", side, track, sector_id);
   printf("blk: %d\n", blk);
@@ -98,8 +99,15 @@ int DiskReadSectorRAW(int dsk, int side, int track, unsigned char sector_id, uns
   } else {
     memcpy(sect, sector_buffer, 256);
   }
+
+  md[0] = track;
+  md[1] = side;
+  md[2] = sector_id;
+  md[3] = 0x02;
+  md[4] = 0x00;
+  md[5] = 0x00;
   
-//   return 1;
+  return 1;
 }
 #else
 int DiskWriteSectorRAW(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect) {
@@ -115,7 +123,7 @@ int DiskWriteSectorRAW(int dsk, int side, int track, unsigned char sector_id, un
 //   return 1;
 }
 
-int DiskReadSectorRAW(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect) {
+int DiskReadSectorRAW(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect, unsigned char *md) {
   unsigned long lba, blk;
   
   blk = DTStoBlock(dsk, side, track, sector_id);
@@ -124,7 +132,13 @@ int DiskReadSectorRAW(int dsk, int side, int track, unsigned char sector_id, uns
   lba = diskLba[dsk][blk];
   if (lba >= MaxLba()) return 0;
 
-
+  md[0] = track;
+  md[1] = side;
+  md[2] = sector_id;
+  md[3] = 0x02;
+  md[4] = 0x00;
+  md[5] = 0x00;
+  
   return sd_read_sector(lba, sect);
 //   int result = sd_read_sector(lba, sect);
 //   
@@ -134,17 +148,25 @@ int DiskReadSectorRAW(int dsk, int side, int track, unsigned char sector_id, uns
 }
 #endif
 
-int DiskTryRAW(int i, int len, unsigned char *sector_id) {
+int DiskTryRAW(int i, int len) {
 #ifdef SAMCOUPE
   isCPM[i] = len == 737280;
 #endif
 #ifdef AMSTRADCPC
-  debug(("len = %d\n", len));
   if (len == 184320) {
-    *sector_id = 0xc1;
     return 1;
   }
   return 0;
 #endif
+  return 1;
+}
+
+int DiskGetSectorIdRAW(int dsk, int ndx, int side) {
+  if (ndx < 0) return SECTOR_COUNT_512;
+  if (ndx < SECTOR_COUNT_512) return 0xc1 + ndx;
+  return -1;
+}
+
+int DiskSeekRAW(int dsk, int track) {
   return 1;
 }

@@ -13,7 +13,7 @@
 #	define DISK_BLOCKS   360
 #endif
 extern int DiskOpen(int i, const char *fn, DIRENTRY *p);
-extern int DiskClose(void);
+extern int DiskClose(int i);
 extern void DiskInit(void);
 extern void DiskHandler(void);
 
@@ -22,12 +22,16 @@ extern void DiskHandler(void);
 #endif
 
 int DiskWriteSectorECPC(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect);
-int DiskReadSectorECPC(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect);
-int DiskTryECPC(int i, int len, unsigned char *sector_id);
+int DiskReadSectorECPC(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect, unsigned char *md);
+int DiskTryECPC(int i, int len);
+int DiskGetSectorIdECPC(int dsk, int ndx, int side);
+int DiskSeekECPC(int dsk, int track);
 
 int DiskWriteSectorRAW(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect);
-int DiskReadSectorRAW(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect);
-int DiskTryRAW(int i, int len, unsigned char *sector_id);
+int DiskReadSectorRAW(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect, unsigned char *md);
+int DiskTryRAW(int i, int len);
+int DiskGetSectorIdRAW(int dsk, int ndx, int side);
+int DiskSeekRAW(int dsk, int track);
 
 #ifdef SAMCOUPE
 #define MAX_BLOCK_NR 1600
@@ -37,7 +41,8 @@ int DiskTryRAW(int i, int len, unsigned char *sector_id);
 #define SECTOR_COUNT_256 20
 #elif defined(AMSTRADCPC)
 #define MAX_BLOCK_NR 360
-#define NR_DISK_LBA   441
+// #define NR_DISK_LBA   441
+#define NR_DISK_LBA   1679
 #define SECTOR_COUNT_512 9
 #define SECTOR_COUNT_256 18
 #else
@@ -49,5 +54,6 @@ int DiskTryRAW(int i, int len, unsigned char *sector_id);
 
 extern unsigned int diskLba[NR_DISKS][NR_DISK_LBA];
 extern int DiskCreateBlank(char *fn);
+extern void DiskSetWp(int disk, int value);
 
 #endif

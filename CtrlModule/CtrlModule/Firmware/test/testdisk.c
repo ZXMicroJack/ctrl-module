@@ -30,6 +30,11 @@ unsigned int DISK_SR = 0;
 unsigned int DISK_CR = 0;
 unsigned int DISK_DATA = 0;
 
+unsigned int TIMER_MS = 0;
+
+#define HW_TIMER() TIMER_MS
+
+
 #define HW_DISK_SR_R() DISK_SR
 #define HW_DISK_CR_W(d) DISK_CR = d
 // #define HW_DISK_DATA_R() DISK_DATA
@@ -142,8 +147,18 @@ void write_data(unsigned int c) {
 }
 
 void read_sector(int disk, int sector) {
+  printf("read_sector: disk:%d sector:%06x\n", disk, sector);
   DISK_SR = (disk ? HW_DISK_READSECTOR1 : HW_DISK_READSECTOR0) | sector;
   //handlers[IRQ_DISK]();
+  DiskHandler();
+//   DISK_SR = HW_DISK_RESET;
+//   DiskHandler();
+}
+
+void seek_track(int disk, int track) {
+  DISK_SR = (disk ? HW_DISK_MOVETRACK1 : HW_DISK_MOVETRACK0) | (track << 8);
+  DiskHandler();
+  DISK_SR = HW_DISK_RESET;
   DiskHandler();
 }
 
@@ -181,7 +196,7 @@ void testHappyPath(int disk) {
   // read sector
   wpos = 0;
   read_sector(disk, STS(0,0,S1));
-  passifeq(DISK_CR & 0xffffff, HW_DISK_CR_SACK, "expecting ack");
+  passifeq(DISK_CR & HW_DISK_CR_SACK, HW_DISK_CR_SACK, "expecting ack");
   passifeq(wpos, BLOCK_SIZE, "expecting data");
 
   // DISK_SR = disk ? HW_DISK_READDATA1 : HW_DISK_READDATA0;
@@ -211,7 +226,7 @@ void testHappyPath(int disk) {
 //   update_disk(0, DTStoBlock(disk, 0,39,MAX_SECTOR));
   update_disk(0, STS(0,39,MAX_SECTOR));
 
-  passifeq(DISK_CR & 0xffffff, HW_DISK_CR_SACK, "expecting clear");
+  passifeq(DISK_CR & HW_DISK_CR_SACK, HW_DISK_CR_SACK, "expecting clear");
   passif(isBlank(buffer), "last sector compares ok");
 //   hexdump(buffer, 512);
 #endif
@@ -273,14 +288,15 @@ void testExtDiskFormat() {
 
   
 
-  DiskClose();
+  DiskClose(0);
   DiskHandler();
-  passifeq((DISK_CR>>24), 0x00, "no more sector number");
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, 0, "no more sector number");
   
   // open dsk version of the same disk
   passif(DiskOpen(0, "bouldash.dsk", NULL), "open extended disk");
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, HW_DISK_CR_DISK0IN, "no more sector number");
   DiskHandler();
-  passifeq((DISK_CR>>24), 0xc1, "default sector number");
+  passifeq((DISK_CR>>24), 0xc2, "default sector number");
   
   blkno = STS(0,0,0xc1);
   wpos = 0;
@@ -297,16 +313,23 @@ void testExtDiskFormat() {
 #endif
 }
 
+
+// #undef STS
+// #define STS(a,b,c) DTStoBlock(0,a,b,c)
 void testExtDiskFormatAdvanced() {
 #ifdef AMSTRADCPC
   int blkno = 0;
   ChangeDirectory(NULL);
   DirCd("AMSTRA~1");
 //   dir(show);
-
+  
+//   passifeq(STS(0,0,0xc1), 0, "first block");
+//   passifeq(STS(0,0,0xc9), 8, "last block track 1 block");
+// 
   passif(DiskOpen(0, "bouldash.img", NULL), "open raw disk");
   DiskHandler();
-  passifeq((DISK_CR>>24), 0xc1, "default sector number");
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, HW_DISK_CR_DISK0IN, "no more sector number");
+//   passifeq((DISK_CR>>24), 0xc2, "default sector number");
   
   blkno = STS(0,0,0xc1);
   read_sector(0, blkno);
@@ -331,34 +354,39 @@ void testExtDiskFormatAdvanced() {
   }
   passifeq(nrchksums, MAX_BLOCK_NR, "collected enough checksums");
 
-  DiskClose();
+  DiskClose(0);
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, 0, "no more sector number");
   DiskHandler();
-  passifeq((DISK_CR>>24), 0x00, "no more sector number");
+//   passifeq((DISK_CR>>24), 0x00, "no more sector number");
   
   // open dsk version of the same disk
   passif(DiskOpen(0, "bouldash.dsk", NULL), "open extended disk");
   DiskHandler();
-  passifeq((DISK_CR>>24), 0xc1, "default sector number");
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, HW_DISK_CR_DISK0IN, "no more sector number");
+//   passifeq((DISK_CR>>24), 0xc2, "default sector number");
   
   int ndx = 0;
   int nrcorrect = 0;
   for (int t=0; t<40; t++) {
+    seek_track(0, t);
     for (int s=0; s<9; s++) {
       wpos = 0;
-      blkno = STS(0,t,(0xc1+s));
+      blkno = STSX(0,0,t,(0xc1+s));
       read_sector(0, blkno);
       if (wpos != 512) fprintf(stderr, "FAILED TO READ!\n");
       unsigned long chk = calcchksum(buffer, 512);
       
       if (ndx < nrchksums) {
-        if (chksums[ndx++] == chk) {
+        if (chksums[ndx] == chk) {
           nrcorrect ++;
         }
       } else fprintf(stderr, "TOO MANY SECTORS!\n");
-      printf("%02d-%02d [%04X]: %08X\n", t, s, blkno, chk);
+      printf("%02d-%02d [%04X]: %08X (%08X)\n", t, s, blkno, chk, chksums[ndx]);
+      ndx++;
     }
   }
   passifeq(nrchksums, nrcorrect, "checksums correct");
+  return;
   
   unsigned char blk[512];
   unsigned char blk2[512];
@@ -366,26 +394,26 @@ void testExtDiskFormatAdvanced() {
   memset(blk, 0x33, sizeof blk);
   memset(blk2, 0x00, sizeof blk2);
   DiskWriteSectorECPC(0, 0, 33, 0xc1, blk);
-  DiskReadSectorECPC(0, 0, 33, 0xc1, blk2);
+  DiskReadSectorECPC(0, 0, 33, 0xc1, blk2, NULL);
   passif(!memcmp(blk, blk2, 512), "check blocks can be written and read back");
 
   memset(blk, 0x44, sizeof blk);
   memset(blk2, 0x00, sizeof blk2);
   DiskWriteSectorECPC(0, 0, 33, 0xc5, blk);
-  DiskReadSectorECPC(0, 0, 33, 0xc5, blk2);
+  DiskReadSectorECPC(0, 0, 33, 0xc5, blk2, NULL);
   passif(!memcmp(blk, blk2, 512), "check blocks can be written and read back");
   
   
   memset(blk, 0x55, sizeof blk);
   memset(blk2, 0x00, sizeof blk2);
   DiskWriteSectorECPC(0, 0, 34, 0xc1, blk);
-  DiskReadSectorECPC(0, 0, 34, 0xc1, blk2);
+  DiskReadSectorECPC(0, 0, 34, 0xc1, blk2, NULL);
   passif(!memcmp(blk, blk2, 512), "check blocks can be written and read back");
 
   memset(blk, 0x44, sizeof blk);
   memset(blk2, 0x00, sizeof blk2);
   DiskWriteSectorECPC(0, 0, 34, 0xc5, blk);
-  DiskReadSectorECPC(0, 0, 34, 0xc5, blk2);
+  DiskReadSectorECPC(0, 0, 34, 0xc5, blk2, NULL);
   passif(!memcmp(blk, blk2, 512), "check blocks can be written and read back");
 
   
@@ -396,13 +424,14 @@ void testExtDiskFormatAdvanced() {
 void testExtDiskFormatAdvanced2() {
 #ifdef AMSTRADCPC
   int blkno = 0;
+  sectorNr[0] = 0;
   ChangeDirectory(NULL);
   DirCd("AMSTRA~1");
 //   dir(show);
 
   passif(DiskOpen(0, "XEVIOUS.IMG", NULL), "open raw disk");
   DiskHandler();
-  passifeq((DISK_CR>>24), 0xc1, "default sector number");
+//   passifeq((DISK_CR>>24), 0xc1, "default sector number");
   
 #if 1
   blkno = STS(0,0,0xc1);
@@ -428,18 +457,19 @@ void testExtDiskFormatAdvanced2() {
   }
   passifeq(nrchksums, MAX_BLOCK_NR, "collected enough checksums");
 
-  DiskClose();
+  DiskClose(0);
   DiskHandler();
-  passifeq((DISK_CR>>24), 0x00, "no more sector number");
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, 0, "no more sector number");
   
   // open dsk version of the same disk
   passif(DiskOpen(0, "XEVIOUS.DSK", NULL), "open extended disk");
   DiskHandler();
-  passifeq((DISK_CR>>24), 0xc1, "default sector number");
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, HW_DISK_CR_DISK0IN, "disk is in");
   
   int ndx = 0;
   int nrcorrect = 0;
   for (int t=0; t<40; t++) {
+    seek_track(0, t);
     for (int s=0; s<9; s++) {
       wpos = 0;
       blkno = STS(0,t,(0xc1+s));
@@ -468,7 +498,7 @@ void testExtFormatCP1() {
   DirCd("AMSTRA~1");
   passif(DiskOpen(0, "BATMANFR.DSK", NULL), "open batman forever disk (42 tracks 9-10 sectors)");
   DiskHandler();
-  passifeq((DISK_CR>>24), 0xc1, "default sector number");
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, HW_DISK_CR_DISK0IN, "disk is in");
 
   unsigned short sectorTests[] = {0x00c1, 0x00c9, 0x0101, 0x010a, 0x2801, 0x290a};
   unsigned long lastchk = calcchksum(buffer, 512);
@@ -477,6 +507,7 @@ void testExtFormatCP1() {
   
   for (int i=0; i<sizeof sectorTests / sizeof sectorTests[0]; i++) {
     wpos = 0;
+    seek_track(0, sectorTests[i] >> 8);
     blkno = STS(0,sectorTests[i] >> 8,sectorTests[i] & 0xff);
     read_sector(0, blkno);
     passifeq(512, wpos, "check sector was read");
@@ -498,10 +529,11 @@ void testBlankDisk() {
   
   passif(DiskOpen(0, "DISK.DSK", NULL), "open blank disk");
   DiskHandler();
-  passifeq((DISK_CR>>24), 0xc1, "default sector number");
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, HW_DISK_CR_DISK0IN, "default sector number");
 
   int nrcorrect = 0;
   for (int t=0; t<40; t++) {
+    seek_track(0, t);
     for (int s=0; s<9; s++) {
       wpos = 0;
       unsigned long blkno = STS(0,t,(0xc1+s));
@@ -554,6 +586,22 @@ void testOverlappedRead2(void) {
   passif(isBlank(buffer), "sector 359 reads ok");
 }
 #endif
+
+// void testTimer() {
+//   TIMER_MS = 0;
+//   passifeq(0, HW_TIMER(), "check test code works 1");
+//   TIMER_MS = 333;
+//   passifeq(333, HW_TIMER(), "check test code works 2");
+//   TIMER_MS = 0;
+//   
+//   passifeq(333, TimerElapsed(0,333), "test positive one");
+//   passifeq(333, TimerElapsed(-333,0), "test negative one");
+//   passifeq(512, TimerElapsed(0xfffffe00, 0), "test elapsed overflows");
+//   passifeq(512, TimerElapsed(0xffffff00, 0x100), "test elapsed overflows");
+//   passifeq(512, TimerElapsed(0x00000000, 0x200), "test elapsed overflows");
+//   passifeq(512, TimerElapsed(0x00000100, 0x300), "test elapsed overflows");
+// }
+
 //TODO: disk menus - increased memory
 //TODO: add file offset finding
 //TODO: add disk logic interface
@@ -573,9 +621,9 @@ int main(int argc, char **argv) {
 
   test(DiskInit,());
   test(HappyPath,(0));
-// #if NR_DISKS > 1
-//   test(HappyPath,(1));
-// #endif
+#if NR_DISKS > 1
+  test(HappyPath,(1));
+#endif
   test(DiskFormats,());
   test(ExtDiskFormat,());
   test(ExtDiskFormatAdvanced,());
@@ -584,6 +632,8 @@ int main(int argc, char **argv) {
   test(BlankDisk,());
   test(ExtFormatCP1,());
 #endif
+  
+//   test(Timer,());
 
   // test(OverlappedRead,());
   // test(OverlappedRead2,());

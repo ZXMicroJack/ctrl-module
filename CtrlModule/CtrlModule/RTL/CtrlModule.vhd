@@ -185,23 +185,23 @@ signal uartrxfifo_read : std_logic;
 signal uartrxfifo_reset : std_logic;
 signal uartrxfifo_empty : std_logic;
 signal uartrxfifo_full : std_logic;
-signal timer : unsigned(31 downto 0);
-signal timer_sub : unsigned(5 downto 0);
+-- signal timer : unsigned(31 downto 0);
+-- signal timer_sub : unsigned(14 downto 0);
 
 begin
   kbd_kbscan <= kbdrecvbyte(7 downto 0);
   kbd_kbhit <= kbdrecv;
   
   -- Timer
-  process(clk26)
-  begin
-    if rising_edge(clk26) then
-      timer_sub <= timer_sub + 1;
-      if timer_sub = 0 then
-        timer <= timer + 1;
-      end if;
-    end if;
-  end process;
+--   process(clk26)
+--   begin
+--     if rising_edge(clk26) then
+--       timer_sub <= timer_sub + 1;
+--       if timer_sub = 0 then
+--         timer <= timer + 1;
+--       end if;
+--     end if;
+--   end process;
 
 	TAPE: if USE_TAPE = 1 generate
 		tape_data_out <= htape_data;
@@ -621,9 +621,9 @@ begin
                 mem_read(31 downto 0) <= debug2(31 downto 0);
                 mem_busy <= '0';
                 
-              when X"FC" => -- Read timer
-                mem_read(31 downto 0) <= std_logic_vector(timer(31 downto 0));
-                mem_busy <= '0';
+--               when X"FC" => -- Read timer
+--                 mem_read(31 downto 0) <= std_logic_vector(timer(31 downto 0));
+--                 mem_busy <= '0';
 								
 							when others =>
 								mem_busy<='0';
