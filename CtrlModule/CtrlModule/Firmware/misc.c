@@ -96,3 +96,14 @@ void GuessFilename(char *buff, const char *offset, const char *deftext) {
     strcpy(buff, deftext);
   }
 }
+
+int compare(const char *s1, const char *s2,int b) {
+	int i;
+	for(i=0;i<b;++i)
+	{
+		if(*s1++!=*s2++)
+			return(1);
+	}
+	return(0);
+}
+

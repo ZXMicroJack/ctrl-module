@@ -3,7 +3,7 @@
 #include "keyboard.h"
 #include "host.h"
 
-#ifdef SAMCOUPE
+#if defined(SAMCOUPE) || defined(AMSTRADCPC)
 #	define HOTKEY KEY_F12
 #else
 #	define HOTKEY KEY_ESC
@@ -29,7 +29,7 @@ static int menu_visible=0;
 #define SW_WP_D0			0x40
 #define SW_WP_D1			0x80
 
-#ifdef SAMCOUPE
+#if defined(SAMCOUPE) || defined(AMSTRADCPC)
 #define MENU_TOGGLE_BITS_DEFAULT    0x6 | SW_WP_D0 | SW_WP_D1
 #else
 #define MENU_TOGGLE_BITS_DEFAULT    0x6 | SW_DBLWIN | SW_WP_D0 | SW_WP_D1
@@ -207,7 +207,7 @@ int Menu_Run()
 			MENU_ACTION_CALLBACK((m+menurows)->action)(ROW_LINEDOWN);
 	}
 
-	if((TestKey(KEY_PAGEUP)&2) ONLY_JOYKEYS(|| (TestKey(keys_p1[2])&2)))
+	if((TestKey(KEY_PAGEUP)&2) || (TestKey(KEY_LEFTARROW)&2) ONLY_JOYKEYS(|| (TestKey(keys_p1[2])&2)))
 	{
 		if(currentrow)
 			currentrow=0;
@@ -215,7 +215,7 @@ int Menu_Run()
 			MENU_ACTION_CALLBACK((m+menurows)->action)(ROW_PAGEUP);
 	}
 
-	if((TestKey(KEY_PAGEDOWN)&2) ONLY_JOYKEYS(|| (TestKey(keys_p1[3])&2)))
+	if((TestKey(KEY_PAGEDOWN)&2) || (TestKey(KEY_RIGHTARROW)&2) ONLY_JOYKEYS(|| (TestKey(keys_p1[3])&2)))
 	{
 		if(currentrow<(menurows-1))
 			currentrow=menurows-1;

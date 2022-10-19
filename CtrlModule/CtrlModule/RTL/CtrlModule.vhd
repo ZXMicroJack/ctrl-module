@@ -58,7 +58,7 @@ entity CtrlModule is
 		disk_data_clkin : out std_logic;
 		disk_data_clkout : out std_logic;
 		disk_sr : in std_logic_vector(31 downto 0);
-		disk_cr : out std_logic_vector(31 downto 0);
+		disk_cr : out std_logic_vector(31 downto 0) := X"00000000";
 
 		-- Hyperload tape
 		tape_data_out : out std_logic_vector(7 downto 0);
@@ -86,6 +86,7 @@ entity CtrlModule is
 		-- Device state
 		host_rom_initialised : in  std_logic :='1'
 		; debug : in std_logic_vector(31 downto 0)
+		; debug2 : in std_logic_vector(31 downto 0)
 		);
 
 end entity;
@@ -184,10 +185,23 @@ signal uartrxfifo_read : std_logic;
 signal uartrxfifo_reset : std_logic;
 signal uartrxfifo_empty : std_logic;
 signal uartrxfifo_full : std_logic;
+signal timer : unsigned(31 downto 0);
+signal timer_sub : unsigned(5 downto 0);
 
 begin
   kbd_kbscan <= kbdrecvbyte(7 downto 0);
   kbd_kbhit <= kbdrecv;
+  
+  -- Timer
+  process(clk26)
+  begin
+    if rising_edge(clk26) then
+      timer_sub <= timer_sub + 1;
+      if timer_sub = 0 then
+        timer <= timer + 1;
+      end if;
+    end if;
+  end process;
 
 	TAPE: if USE_TAPE = 1 generate
 		tape_data_out <= htape_data;
@@ -602,6 +616,14 @@ begin
 							when X"F4" => -- Read host status
 								mem_read(31 downto 0) <= debug(31 downto 0);
 								mem_busy <= '0';
+              
+              when X"F8" => -- Read debug 2
+                mem_read(31 downto 0) <= debug2(31 downto 0);
+                mem_busy <= '0';
+                
+              when X"FC" => -- Read timer
+                mem_read(31 downto 0) <= std_logic_vector(timer(31 downto 0));
+                mem_busy <= '0';
 								
 							when others =>
 								mem_busy<='0';

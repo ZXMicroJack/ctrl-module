@@ -23,8 +23,10 @@ testsuite SWAP
 ./testswap > testswap.txt || exit 1
 testsuite MISC
 ./testmisc > testmisc.txt || exit 1
-testsuite DISK
-./testdisk > testdisk.txt || exit 1
+testsuite DISK-SAMCOUPE
+./testdisksamcoupe > testdisksamcoupe.txt || exit 1
+testsuite DISK-AMSTRADCPC
+./testdiskamstradcpc > testdiskamstradcpc.txt || exit 1
 testsuite DISK256
 ./testdisk256 > testdisk256.txt || exit 1
 

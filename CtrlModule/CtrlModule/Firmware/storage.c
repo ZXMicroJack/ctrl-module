@@ -138,7 +138,7 @@ int SaveFile(const char *fn, int (*callback)(unsigned char *data), long len) {
 
 	debug(("SaveFile: opening file to write\n"));
 	FilenameNormalise(fnn, fn);
-	debug(("SaveFile: normalised\n"));
+	debug(("SaveFile: normalised from %s to %s\n", fn, fnn));
   if (FileOpen(&file, fnn)) {
     debug(("found file\n"));
     while (remaining > 0) {

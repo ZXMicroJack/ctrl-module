@@ -133,7 +133,7 @@ void OSD_Show(int visible)
 	// if (hh < 150)
 	// 	pixelclock=2;
 	// else
-#ifdef SAMCOUPE
+#if defined(SAMCOUPE) || defined(AMSTRADCPC)
   pixelclock=2;
 #else
   pixelclock=1;
@@ -156,7 +156,7 @@ void OSD_Show(int visible)
 	// HW_OSD(REG_OSD_XPOS)=hl;
 	// HW_OSD(REG_OSD_YPOS)=-vl;
 
-#ifdef SAMCOUPE
+#if defined(SAMCOUPE) || defined(AMSTRADCPC)
   HW_OSD(REG_OSD_XPOS)=-200;
   HW_OSD(REG_OSD_YPOS)=-100;
 #else

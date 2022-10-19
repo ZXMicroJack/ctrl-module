@@ -128,6 +128,7 @@ static void GetFSinfo(void);
 
 #define fat_buffer (*(FATBUFFER*)&fat_sector_buffer) // Don't need a separate buffer for this.
 
+#if 0
 static int compare(const char *s1, const char *s2,int b)
 {
 	int i;
@@ -138,6 +139,7 @@ static int compare(const char *s1, const char *s2,int b)
 	}
 	return(0);
 }
+#endif
 
 // FindDrive() checks if a card is present and contains FAT formatted primary partition
 int FindDrive(void) {
@@ -527,6 +529,7 @@ void FilenameNormalise(char *out, const char *in) {
 	out[11] = '\0';
 }
 
+#if 0
 int FileOpen(fileTYPE *file, const char *name)
 {
     DIRENTRY      *pEntry = NULL;        // pointer to current entry in sector buffer
@@ -577,6 +580,7 @@ int FileOpen(fileTYPE *file, const char *name)
     }
     return(0);
 }
+#endif
 
 int FileOpenDirEntry(fileTYPE *file, DIRENTRY *pEntry) {
     file->size = SwapBBBB(pEntry->FileSize); 		// for 68000
@@ -755,6 +759,17 @@ int FileRm(const char *dir) {
 	return 0;
 }
 #endif // DISABLE_FILE_REMOVE
+
+int FileOpen(fileTYPE *file, const char *name) {
+	struct DirCd_Struct d;
+	d.foundIt = 0;
+	FilenameNormalise(d.fileName, name);
+	DirEnum(&d, DirCd_Callback, 0);
+	if (d.foundIt) {
+    return FileOpenDirEntry(file, d.thisOne);
+	}
+	return 0;
+}
 
 int FileExists(const char *dir) {
 	return FileExistsEx(dir, NULL);

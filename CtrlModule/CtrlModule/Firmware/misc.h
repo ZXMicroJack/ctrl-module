@@ -12,6 +12,7 @@ extern void intToString(char *s, unsigned int n);
 extern void intToStringNoPrefix(char *s, unsigned int n);
 extern void MutateFilename(char *buff, int n);
 extern void GuessFilename(char *buff, const char *offset, const char *deftext);
+extern int compare(const char *s1, const char *s2,int b);
 
 #define memcpy _memcpy
 #define memset _memset

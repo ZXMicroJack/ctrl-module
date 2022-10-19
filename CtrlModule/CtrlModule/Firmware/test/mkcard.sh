@@ -49,6 +49,9 @@ cp ${MYHOME}/fpga-xilinx/sdcard/card/samcoupe/prodos/HiSoft-C-\(V1-35\).cpm ./t/
 mkdir t/lfn
 cp ${MYHOME}/fpga-xilinx/sam-coupe2/disks/seleccion/* t/lfn
 
+mkdir t/amstradcpc
+cp ${MYHOME}/fpga-xilinx/amstradcpc2/disks/* t/amstradcpc
+
 mkdir t/empty
 umount t
 

@@ -234,6 +234,13 @@ int SaveBlankDiskCallback(unsigned char *data) {
 
 #endif
 
+#ifdef FDDDEBUG
+void diskstatus_Debug(int row) {
+  extern void diskDebug(void);
+  diskDebug();
+}
+#endif
+
 void diskstatus_CreateBlank(int row) {
 	char fn2[13], fn[13];
 	int n = 0;
@@ -252,7 +259,9 @@ void diskstatus_CreateBlank(int row) {
 	OSD_Puts(fn2);
 	OSD_Puts("\n");
 
-#ifdef WRITE_E5_TO_DISK
+#ifdef AMSTRADCPC
+  int result = DiskCreateBlank(fn2);
+#elif defined(WRITE_E5_TO_DISK)
 	int result = SaveFile(fn2, SaveBlankDiskCallback, DISK_BLOCKS*512);
 #elif BLANK_FIRST_SECTORS
   nrSectorsBlanked = 0;
@@ -277,6 +286,9 @@ static struct menu_entry diskstatus[]=
 	{MENU_ENTRY_TOGGLE,"Write protect disk 1",MENU_ACTION(7)},
 #endif
 	{MENU_ENTRY_CALLBACK,"Create blank disk",MENU_ACTION(diskstatus_CreateBlank)},
+#ifdef FDDDEBUG
+  {MENU_ENTRY_CALLBACK,"Debug",MENU_ACTION(diskstatus_Debug)},
+#endif
 	{MENU_ENTRY_SUBMENU,"",MENU_ACTION(diskstatus)},
 	{MENU_ENTRY_SUBMENU,"Back",MENU_ACTION(&topmenu)},
 	{MENU_ENTRY_NULL,0,0}
@@ -320,7 +332,7 @@ struct menu_entry topmenu[]=
 #ifdef DEBUG
   {MENU_ENTRY_CALLBACK,"Debug",MENU_ACTION(&debugit)},
 #endif
-#ifdef LOAD_INITIAL_ROM
+#if defined (LOAD_INITIAL_ROM) && !defined(AMSTRADCPC)
 	{MENU_ENTRY_CALLBACK,"Boot rompack         \x10",MENU_ACTION(&mainmenu_LoadRomPack)},
 #endif
 #ifdef RESET_MENU
@@ -332,7 +344,7 @@ struct menu_entry topmenu[]=
 #ifdef SWITCHES_MENU
 	{MENU_ENTRY_SUBMENU, "Switches             \x10",MENU_ACTION(switchesmenu)},
 #endif
-#ifndef SAMCOUPE
+#if !defined(SAMCOUPE) && !defined(AMSTRADCPC)
 	{MENU_ENTRY_TOGGLE,  "Double OSD window",MENU_ACTION(5)},
 	{MENU_ENTRY_TOGGLE,  "Advanced memmap",MENU_ACTION(8)},
 #endif
@@ -343,7 +355,10 @@ struct menu_entry topmenu[]=
 #ifndef NO_MACHINE_MENU
 	{MENU_ENTRY_CALLBACK, "Machine menu         \x10",MENU_ACTION(MachineMenu)},
 #endif
-	{MENU_ENTRY_CALLBACK,"Exit",MENU_ACTION(&Menu_Hide)},
+// #ifdef AMSTRADCPC
+// 	{MENU_ENTRY_TOGGLE,"Monochrome greenscreen",MENU_ACTION(8)},
+// #endif
+  {MENU_ENTRY_CALLBACK,"Exit",MENU_ACTION(&Menu_Hide)},
 	{MENU_ENTRY_NULL,0,0}
 };
 
@@ -384,7 +399,6 @@ int main(int argc,char **argv)
 	int rom_initialised;
 	
 	rom_initialised = (*(unsigned int *)HOSTSTATE) & 1;
-
 	
 	InitInterrupts();
 	ClearKeyboard();

@@ -246,7 +246,7 @@ void testLegacy() {
   nr_entries = 0;
   dir(show);
   printf("current_directory_cluster = %u\n", current_directory_cluster);
-  passifeq(nr_entries, 8, "got root dir");
+  passifeq(nr_entries, 10, "got root dir");
   passif(cd("ZX"), "chdir zx");
   //
   printf("current_directory_cluster = %u\n", current_directory_cluster);
@@ -311,7 +311,7 @@ void testMkdirRmdir() {
 
 
 #if FAT==32
-#define FREE_SECTORS  83157
+#define FREE_SECTORS  85922
 #else
 #define FREE_SECTORS  16411
 #endif
