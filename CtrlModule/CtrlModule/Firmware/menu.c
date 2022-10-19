@@ -129,12 +129,22 @@ void Menu_SetHotKeys(struct hotkey *head)
 	hotkeys=head;
 }
 
+#ifdef FDDDEBUG
+int stopmenus = 0;
+#endif
 int Menu_Run()
 {
 	int i;
 	struct menu_entry *m=menu;
 	struct hotkey *hk=hotkeys;
 
+#ifdef FDDDEBUG
+  if(TestKey(KEY_F10)&2) {
+    stopmenus = !stopmenus;
+  }
+  if (stopmenus) return;
+#endif
+  
 	if(TestKey(HOTKEY)&2)
 	{
 		while(TestKey(HOTKEY))

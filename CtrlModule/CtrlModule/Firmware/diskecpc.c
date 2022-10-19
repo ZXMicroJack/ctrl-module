@@ -95,7 +95,9 @@ static int DiskReadWriteSectorECPC(int dsk, int side, int track, unsigned char s
   s = side >> 7;
   side &= 0x7f;
   
-  for (i=0; i<ecpcSectorNr[dsk]; i++) {
+  int nrSectors = ecpcSectorNr[dsk];
+  for (i = 0; i < nrSectors; i++) {
+    debug(("looking for sector %d side %d s %d got sector %02X, side %d\n", sector_id, side, s, ecpcStatus[dsk][s][i][2], ecpcStatus[dsk][s][i][1]));
     if (ecpcStatus[dsk][s][i][2] == sector_id && ecpcStatus[dsk][s][i][1] == side) {
       break;
     } else {
@@ -104,7 +106,7 @@ static int DiskReadWriteSectorECPC(int dsk, int side, int track, unsigned char s
   }
   
   // was sector found?
-  if (i < ecpcSectorNr[dsk]) {
+  if (i < nrSectors) {
     unsigned char *ptr;
     int sectOffset = 0;
     

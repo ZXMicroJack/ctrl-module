@@ -36,7 +36,9 @@
 #define HW_DISK_MOVETRACK0    0x40000000
 #define HW_DISK_MOVETRACK1    0x80000000
 
-#define HW_DISK_SR_BLOCKNR    0x7fffff
+#define HW_DISK_SR_BLOCKNR    0x007fffff
+#define HW_DISK_SR_CMDMASK    0xff000000
+
 
 // general defines / macros
 #define NOREQ   0xffffffff
@@ -55,6 +57,7 @@ unsigned long disk_cr = 0;
 #ifndef debug
 #define debug(a) {}
 #endif
+
 
 static unsigned char diskIsInserted[NR_DISKS];
 static unsigned long diskReadBlock[NR_DISKS];
@@ -89,6 +92,20 @@ void puth(unsigned int a) {
   s[8] = '\0';
   puts(s);
 }
+
+extern int stopmenus;
+static void dbg() {
+  if (stopmenus) {
+    OSD_Putchar('-');
+    OSD_Putchar('-');
+    puth(HW_DISK_SR_R()); 
+    OSD_Putchar('-');
+    puth(disk_cr);
+    putln();
+  }
+}
+#else
+#define dbg() {}
 #endif
 
 unsigned long nrReads = 0;
@@ -119,6 +136,8 @@ static void DiskNextSectorId(int disk, int side) {
 unsigned char lastTrack[NR_DISKS] = {0};
 void DiskSignalsHandler(void) {
   unsigned long sr = HW_DISK_SR_R();
+  if (lastSr == sr) return;
+  
   if (sr & (HW_DISK_READSECTOR0|HW_DISK_WRITESECTOR0)) {
     diskReadBlock[0] = sr & HW_DISK_SR_BLOCKNR;
     if (sr & HW_DISK_WRITESECTOR0) diskReadBlock[0] |= DISK_BLOCK_WRITE;
@@ -137,11 +156,13 @@ void DiskSignalsHandler(void) {
   if (sr & HW_DISK_RESET) {
     disk_cr &= ~(HW_DISK_CR_SACK|HW_DISK_CR_ERR|HW_DISK_CR_SEEK1ACK|HW_DISK_CR_SEEK0ACK|HW_DISK_CR_WPERROR);
     HW_DISK_CR_W(disk_cr);
+//     dbg();
   }
   
 #define disk 0
   if (sr & HW_DISK_NEXTSECTORID0) {
     DiskNextSectorId(disk, (sr >> 22) & 1);
+    dbg();
   }
   
   if (sr & HW_DISK_MOVETRACK0) {
@@ -151,6 +172,7 @@ void DiskSignalsHandler(void) {
 //       DiskNextSectorId(disk);
       disk_cr |= HW_DISK_CR_SEEK0ACK;
     } else disk_cr |= HW_DISK_CR_SEEK0ACK|HW_DISK_CR_ERR;
+    dbg();
   }
 #undef disk
 
@@ -158,6 +180,7 @@ void DiskSignalsHandler(void) {
 #define disk 1
   if (sr & HW_DISK_NEXTSECTORID1) {
     DiskNextSectorId(disk, (sr >> 22) & 1);
+    dbg();
   }
   
   if (sr & HW_DISK_MOVETRACK1) {
@@ -167,6 +190,7 @@ void DiskSignalsHandler(void) {
 //       DiskNextSectorId(disk);
       disk_cr |= HW_DISK_CR_SEEK1ACK;
     } else disk_cr |= HW_DISK_CR_SEEK1ACK|HW_DISK_CR_ERR;
+    dbg();
   }
 #undef disk
 #endif
@@ -184,6 +208,7 @@ void diskDebug(void) {
   puts(" debug: "); puth((*(unsigned int *)DEBUGSTATE)); putln();
   puts(" debug2:"); puth((*(unsigned int *)DEBUGSTATE2)); putln();
 //   puts(" timer:"); puth(HW_TIMER()); putln();
+  
 }
 #endif
 
@@ -242,6 +267,7 @@ void DiskHandlerSingle(int disk) {
     } else disk_cr |= HW_DISK_CR_SACK|HW_DISK_CR_ERR;
 
     diskReadBlock[disk] = NOREQ;
+    dbg();
   }
   
   // spin disk id

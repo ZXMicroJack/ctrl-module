@@ -519,7 +519,42 @@ void testExtFormatCP1() {
     }
     lastchk = chk;
   }
+  DiskClose(0);
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, 0, "disk is out");
 }
+
+void testread(int side, int track, int sector, unsigned long expchksum) {
+  unsigned long chk, blkno;
+  wpos = 0;
+  seek_track(0, track);
+  blkno = STSX(side, side,track,sector);
+  fprintf(stderr, "blkno = %08X\n", blkno);
+  read_sector(0, blkno);
+  passifeq(DISK_CR & (HW_DISK_CR_SACK|HW_DISK_CR_ERR), HW_DISK_CR_SACK, "read ok");
+  passifeq(512, wpos, "check sector was read");
+  chk = calcchksum(buffer, 512);
+  fprintf(stderr, "chk = %08X\n", chk);
+  passifeq(chk, expchksum, "read sector correct");
+}
+
+void testExtFormatDSDD() {
+  unsigned long chk, blkno;
+  ChangeDirectory(NULL);
+  DirCd("AMSTRA~1");
+  passif(DiskOpen(0, "ddle_2.dsk", NULL), "open ddle_2 disk (dsdd)");
+  DiskHandler();
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, HW_DISK_CR_DISK0IN, "disk is in");
+
+  memset(buffer, 0x00, 512);
+  chk = calcchksum(buffer, 512);
+  fprintf(stderr, "chk = %08X\n", chk);
+
+  testread(0,2,4,0x9AE66CF8);
+  testread(1,2,4,0xAEF7A810);
+  DiskClose(0);
+  passifeq(DISK_CR & HW_DISK_CR_DISK0IN, 0, "disk is out");
+}
+
 
 void testBlankDisk() {
   ChangeDirectory(NULL);
@@ -631,7 +666,12 @@ int main(int argc, char **argv) {
 #ifdef AMSTRADCPC
   test(BlankDisk,());
   test(ExtFormatCP1,());
+  test(ExtFormatDSDD,());
 #endif
+
+// #ifdef AMSTRADCPC
+//   test(ExtFormatDSDD,());
+// #endif
   
 //   test(Timer,());
 

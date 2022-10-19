@@ -44,7 +44,7 @@ int isCPM[NR_DISKS];
 
 // #ifdef AMSTRADCPC
 #define STS(side, track, sector) ((((side)&1)<<15)|(((track)&0x7f)<<8)|((sector)&0xff))
-#define STSX(side, head, track, sector) ((((side)&1)<<23)|(((head)&0x7f)<<15)|(((track)&0x7f)<<8)|((sector)&0xff))
+#define STSX(side, head, track, sector) ((((side)&1)<<22)|(((head)&0x7f)<<15)|(((track)&0x7f)<<8)|((sector)&0xff))
 // #else
 // #define STS(side, track, sector) ((((side)&1)<<12)|(((track)&0x7f)<<5)|((sector)&0x1f))
 // #endif

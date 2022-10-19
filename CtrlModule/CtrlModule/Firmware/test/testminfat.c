@@ -311,7 +311,7 @@ void testMkdirRmdir() {
 
 
 #if FAT==32
-#define FREE_SECTORS  85922
+#define FREE_SECTORS  86683
 #else
 #define FREE_SECTORS  16411
 #endif
