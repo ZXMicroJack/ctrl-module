@@ -529,6 +529,28 @@ void FilenameNormalise(char *out, const char *in) {
 	out[11] = '\0';
 }
 
+int FileRewind(fileTYPE *file) {
+  file->sector = 0;
+  file->cluster = file->firstCluster;
+  return 1;
+}
+
+int FileSeek(fileTYPE *file, int sector) {
+  if ((sector * 512) > file->size) {
+    return 0;
+  }
+  
+  if (sector < file->sector) {
+    FileRewind(file);
+  }
+  
+  while (file->sector < sector) {
+    FileNextSector(file);
+  }
+  
+  return 1;
+}
+
 #if 0
 int FileOpen(fileTYPE *file, const char *name)
 {
@@ -587,6 +609,7 @@ int FileOpenDirEntry(fileTYPE *file, DIRENTRY *pEntry) {
     file->cluster = SwapBB(pEntry->StartCluster);
     file->cluster += (fat32 ? (SwapBB(pEntry->HighCluster) & 0x0FFF) << 16 : 0);
     file->sector = 0;
+    file->firstCluster = file->cluster;
     return 1;
 }
 

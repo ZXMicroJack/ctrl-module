@@ -212,7 +212,6 @@ void testRemoveFileEntry(void) {
 }
 
 void testLegacy() {
-  buff = (unsigned char *) malloc(64*1024);
 
 
   // testFilenames();
@@ -225,7 +224,12 @@ void testLegacy() {
   passif(sizeof(struct MasterBootRecord) == 512, "checking structures");
 
   //openCard();
-  passif(FindDrive(), "should pass when disk open");
+  int r;
+  passif(r=FindDrive(), "should pass when disk open");
+  if (!r) return;
+
+  buff = (unsigned char *) malloc(64*1024);
+  
   debug(("dir_entries = %d\n", dir_entries));
 #if FAT==32
   passif(IsFat32(), "should be fat32");
@@ -312,6 +316,7 @@ void testMkdirRmdir() {
 
 #if FAT==32
 #define FREE_SECTORS  86683
+// #define FREE_SECTORS 44213
 #else
 #define FREE_SECTORS  16411
 #endif

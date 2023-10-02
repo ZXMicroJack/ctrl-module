@@ -7,6 +7,7 @@ typedef struct
     unsigned long sector;          /* sector index in file */
     unsigned long size;            /* file size */
     unsigned long cluster;         /* current cluster */
+    unsigned long firstCluster;
 } fileTYPE;
 
 struct PartitionEntry
@@ -128,5 +129,7 @@ int FileOpenDirEntry(fileTYPE *file, DIRENTRY *de);
 void FilenameNormalise(char *out, const char *in);
 unsigned long MaxLba();
 void FatInit();
+int FileSeek(fileTYPE *file, int sector);
+int FileRewind(fileTYPE *file);
 
 #endif

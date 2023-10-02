@@ -2,6 +2,8 @@
 #include <stdio.h>
 
 #define INCLUDE_FILE_REMOVE
+#define INCLUDE_ECPC
+//#define STORE_LBAS
 
 unsigned long HW_HOST_LL2(int reg) {
 }
@@ -146,6 +148,11 @@ void write_data(unsigned int c) {
   }
 }
 
+void reset_handler() {
+  DISK_SR = 0;
+  DiskHandler();
+}
+
 void read_sector(int disk, int sector) {
   printf("read_sector: disk:%d sector:%06x\n", disk, sector);
   DISK_SR = (disk ? HW_DISK_READSECTOR1 : HW_DISK_READSECTOR0) | sector;
@@ -268,7 +275,7 @@ void testExtDiskFormat() {
   int blkno = 0;
   ChangeDirectory(NULL);
   DirCd("AMSTRA~1");
-//   dir(show);
+  dir(show);
 
   passif(DiskOpen(0, "bouldash.img", NULL), "open raw disk");
   DiskHandler();
@@ -276,12 +283,17 @@ void testExtDiskFormat() {
   
   blkno = STS(0,0,0xc1);
   wpos = 0;
+
+  reset_handler();
   read_sector(0, blkno);
   if (wpos != 512) fprintf(stderr, "FAILED TO READ!\n");
   fprintf(stderr, "[%04X]: %08X\n", blkno, calcchksum(buffer, 512));
 
+//   return; //TODO remove
+
   blkno = STS(0,0,0xc2);
   wpos = 0;
+  reset_handler();
   read_sector(0, blkno);
   if (wpos != 512) fprintf(stderr, "FAILED TO READ!\n");
   fprintf(stderr, "[%04X]: %08X\n", blkno, calcchksum(buffer, 512));
@@ -326,6 +338,8 @@ void testExtDiskFormatAdvanced() {
 //   passifeq(STS(0,0,0xc1), 0, "first block");
 //   passifeq(STS(0,0,0xc9), 8, "last block track 1 block");
 // 
+  reset_handler();
+
   passif(DiskOpen(0, "bouldash.img", NULL), "open raw disk");
   DiskHandler();
   passifeq(DISK_CR & HW_DISK_CR_DISK0IN, HW_DISK_CR_DISK0IN, "no more sector number");
@@ -338,6 +352,7 @@ void testExtDiskFormatAdvanced() {
   int nrchksums = 0;
   unsigned long chksums[MAX_BLOCK_NR];
   
+  reset_handler();
   for (int t=0; t<40; t++) {
     for (int s=0; s<9; s++) {
       wpos = 0;
@@ -429,6 +444,8 @@ void testExtDiskFormatAdvanced2() {
   DirCd("AMSTRA~1");
 //   dir(show);
 
+  reset_handler();
+
   passif(DiskOpen(0, "XEVIOUS.IMG", NULL), "open raw disk");
   DiskHandler();
 //   passifeq((DISK_CR>>24), 0xc1, "default sector number");
@@ -441,6 +458,7 @@ void testExtDiskFormatAdvanced2() {
   int nrchksums = 0;
   unsigned long chksums[MAX_BLOCK_NR];
   
+  reset_handler();
   for (int t=0; t<40; t++) {
     for (int s=0; s<9; s++) {
       wpos = 0;
@@ -668,6 +686,9 @@ int main(int argc, char **argv) {
   test(ExtFormatCP1,());
   test(ExtFormatDSDD,());
 #endif
+
+  
+  
 
 // #ifdef AMSTRADCPC
 //   test(ExtFormatDSDD,());

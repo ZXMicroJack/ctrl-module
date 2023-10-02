@@ -52,8 +52,14 @@ int DiskSeekRAW(int dsk, int track);
 #define SECTOR_COUNT_256 18
 #endif
 
-extern unsigned int diskLba[NR_DISKS][NR_DISK_LBA];
 extern int DiskCreateBlank(char *fn);
 extern void DiskSetWp(int disk, int value);
+
+#ifdef STORE_LBAS
+extern unsigned int diskLba[2][NR_DISK_LBA];
+#else
+extern fileTYPE diskFile[2];
+#endif
+
 
 #endif

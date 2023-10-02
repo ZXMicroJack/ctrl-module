@@ -189,20 +189,28 @@ int Save(const char *fn, long len) {
   return 0;
 }
 
+int OpenFile(fileTYPE *file, const char *fn, DIRENTRY *p) {
+  if (p != 0) {
+    if (FileOpenDirEntry(file, p)) {
+      return file->size;
+    }
+  } else {
+    char fnn[13];
+    FilenameNormalise(fnn, fn);
+    if (FileOpen(file, fnn)) {
+      return file->size;
+    }
+  }
+  return 0;
+  }
+
 int Open(const char *fn, DIRENTRY *p, void (*lbacb)(uint32_t)) {
   fileTYPE file;
   unsigned long lba;
   int result = 0;
 
-  if (p != 0) {
-    result = FileOpenDirEntry(&file, p);
-  } else {
-    char fnn[13];
-    FilenameNormalise(fnn, fn);
-    result = FileOpen(&file, fnn);
-  }
-
-  if (result) {
+  result = OpenFile(&file, fn, p);
+  if (result > 0) {
     int filesize=file.size;
 		unsigned int c=0;
 		int bits = GetBits(filesize);

@@ -42,7 +42,13 @@ int DiskSeekECPC(int dsk, int trk) {
     ecpcTrackOffset[dsk][j] = blk + 1;
     
     // read track record
-    sd_read_sector(diskLba[dsk][blk>>1], sector_buffer);
+#ifdef STORE_LBAS
+  unsigned long lba = diskLba[dsk][blk>>1];
+#else
+  FileSeek(&diskFile[dsk], blk>>1);
+  unsigned long lba = FileGetLba(&diskFile[dsk]);
+#endif
+    sd_read_sector(lba, sector_buffer);
     ptr = ((blk&1) == 1) ? &sector_buffer[256] : sector_buffer;
     
     // check track record
@@ -125,7 +131,12 @@ static int DiskReadWriteSectorECPC(int dsk, int side, int track, unsigned char s
   
     do {
       // read track record
+#ifdef STORE_LBAS
       thisBlk = diskLba[dsk][blk>>1];
+#else
+      FileSeek(&diskFile[dsk], blk>>1);
+      thisBlk = FileGetLba(&diskFile[dsk]);
+#endif
       if (blkRead != thisBlk) {
         sd_read_sector(thisBlk, sector_buffer);
         blkRead = thisBlk;
@@ -164,7 +175,13 @@ int DiskTryECPC(int i, int len) {
   int n;
   
   // read first block
-  sd_read_sector(diskLba[i][0], sector_buffer);
+#ifdef STORE_LBAS
+  unsigned long lba = diskLba[i][0];
+#else
+  FileSeek(&diskFile[i], 0);
+  unsigned long lba = FileGetLba(&diskFile[i]);
+#endif
+  sd_read_sector(lba, sector_buffer);
 
   // has recognised ID
   if (!compare(ecpcDiskID, sector_buffer, 8)) {

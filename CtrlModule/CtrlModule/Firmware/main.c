@@ -15,7 +15,11 @@
 #include "uart.h"
 #include "machinemenu.h"
 
-fileTYPE file;
+#ifdef AMSTRADCPC
+#define topmenu diskstatus
+#else
+#define topmenu mainmenu
+#endif
 
 #ifdef JOYKEYS
 extern int keys_p1[];
@@ -47,6 +51,9 @@ void LoadInitialRom(void) {
 #ifdef ROMPAK2
 		LoadROM(ROMPAK2);
 #endif
+#ifdef ROMPAK3
+		LoadROM(ROMPAK3);
+#endif
     
   } else OSD_Puts("Failed to change directory");
 }
@@ -61,7 +68,7 @@ void Reset(int row)
 }
 #endif
 
-struct menu_entry topmenu[]; // Forward declaration.
+const struct menu_entry mainmenu[]; // Forward declaration.
 
 #ifdef OPTION_MENU
 static char *testpattern_labels[]=
@@ -190,10 +197,7 @@ static struct menu_entry diskstatus[];
 static char diskNr = 0;
 static int diskstatus_LoadDiskReal(const char *filename, DIRENTRY *p) {
   int result = DiskOpen(diskNr, filename, p);
-  if(result)
-		Menu_Set(diskstatus);
-	else
-		Menu_Set(loadfailed);
+  Menu_Set(result ? diskstatus : loadfailed);
   return result;
 }
 
@@ -273,10 +277,8 @@ void diskstatus_CreateBlank(int row) {
 #else
 	int result = SaveFile(fn2, NULL, DISK_BLOCKS*512);
 #endif
-  if(result)
-		Menu_Set(diskstatus);
-	else
-		Menu_Set(loadfailed);
+  
+  Menu_Set(result ? diskstatus : loadfailed);
 }
 
 static struct menu_entry diskstatus[]=
@@ -289,7 +291,9 @@ static struct menu_entry diskstatus[]=
   {MENU_ENTRY_CALLBACK,"Insert disk 1",MENU_ACTION(diskstatus_LoadDisk1)},
 	{MENU_ENTRY_TOGGLE,"Write protect disk 1",MENU_ACTION(7)},
 #endif
+#ifndef EXCLUDE_CREATE_BLANK
 	{MENU_ENTRY_CALLBACK,"Create blank disk",MENU_ACTION(diskstatus_CreateBlank)},
+#endif
 #ifdef FDDDEBUG
   {MENU_ENTRY_CALLBACK,"Debug",MENU_ACTION(diskstatus_Debug)},
 #endif
@@ -331,7 +335,7 @@ void debugit(int row) {
 #ifndef NO_MACHINE_MENU
 void MachineMenu(int row);
 #endif
-struct menu_entry topmenu[]=
+const struct menu_entry mainmenu[]=
 {
 #ifdef DEBUG
   {MENU_ENTRY_CALLBACK,"Debug",MENU_ACTION(&debugit)},

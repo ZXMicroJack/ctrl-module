@@ -212,7 +212,11 @@ void diskDebug(void) {
 }
 #endif
 
-unsigned int diskLba[NR_DISKS][NR_DISK_LBA];
+#ifdef STORE_LBAS
+unsigned int diskLba[2][NR_DISK_LBA];
+#else
+fileTYPE diskFile[2];
+#endif
 
 unsigned char disk_sector[BLOCK_SIZE];
 
@@ -297,10 +301,12 @@ void DiskHandler(void) {
   HW_DISK_CR_W(disk_cr);
 }
 
+#ifdef STORE_LBAS
 static unsigned int mem = 0, disk=0;
 static void LbaCallback(unsigned int lba) {
   diskLba[disk][mem++] = lba;
 }
+#endif
 
 void DiskSetWp(int disk, int value) {
   diskwp[disk] = value;
@@ -308,26 +314,38 @@ void DiskSetWp(int disk, int value) {
 
 
 int DiskOpen(int i, const char *fn, DIRENTRY *p) {
+#ifdef STORE_LBAS
   disk = i;
   mem = 0;
+#endif
 
   DiskClose(i);
 //   HW_DISK_CR_W(disk_cr);
 
+#ifdef STORE_LBAS
   int len = Open(fn, p, LbaCallback);
+#else
+  int len = OpenFile(&diskFile[i], fn, p);
+#endif
   if (len == 0) return 0;
   
+#ifdef INCLUDE_ECPC
   if (DiskTryECPC(i, len)) {
     preadSector[i] = DiskReadSectorECPC;
     pwriteSector[i] = DiskWriteSectorECPC;
     pgetSectorId[i] = DiskGetSectorIdECPC;
     pseek[i] = DiskSeekECPC;
-  } else if (DiskTryRAW(i, len)) {
+  } else
+#endif
+#ifndef EXCLUDE_RAW
+    if (DiskTryRAW(i, len)) {
     preadSector[i] = DiskReadSectorRAW;
     pwriteSector[i] = DiskWriteSectorRAW;
     pgetSectorId[i] = DiskGetSectorIdRAW;
     pseek[i] = DiskSeekRAW;
-  } else {
+  } else
+#endif
+  {
     preadSector[i] = DiskReadSectorNone;
     pwriteSector[i] = DiskWriteSectorNone;
     pgetSectorId[i] = DiskGetSectorIdNone;
@@ -338,7 +356,7 @@ int DiskOpen(int i, const char *fn, DIRENTRY *p) {
 
   // seek to last track and fetch next sector id from that track
   pseek[i](i, lastTrack[i]);
-  sectorNr[disk] = 0;
+  sectorNr[i] = 0;
 //   DiskNextSectorId(disk);
   
   if (i) {
@@ -367,17 +385,21 @@ void DiskInit(void) {
 	for (i=0; i<NR_DISKS; i++) {
 		diskIsInserted[i] = 0;
 		diskReadBlock[i] = NOREQ;
+#ifdef STORE_LBAS
 		for (j=0; j<NR_DISK_LBA; j++) {
 			diskLba[i][j] = 0;
 		}
+#endif
     preadSector[i] = DiskReadSectorNone;
     pwriteSector[i] = DiskWriteSectorNone;
     pgetSectorId[i] = DiskGetSectorIdNone;
     pseek[i] = DiskSeekNone;
     diskwp[i] = 1;
 	}
+#ifdef STORE_LBAS
 	mem = 0;
 	disk = 0;
+#endif
 	disk_cr = 0;
 	laststs = 0;
   HW_DISK_CR_W(disk_cr);

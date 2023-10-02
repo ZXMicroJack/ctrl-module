@@ -69,7 +69,13 @@ int DiskWriteSectorRAW(int dsk, int side, int track, unsigned char sector_id, un
   unsigned long blk = DTStoBlock(dsk, side, track, sector_id);
   if (blk >= NR_DISK_LBA) return 0;
   
-  unsigned long lba = diskLba[disk][blk];
+#ifdef STORE_LBAS
+  unsigned long lba = diskLba[dsk][blk];
+#else
+  FileSeek(&diskFile[dsk], blk);
+  unsigned long lba = FileGetLba(&diskFile[dsk]);
+#endif
+  
   if (lba >= MaxLba()) return 0;
   
   if (!sd_read_sector(lba, sector_buffer)) return 0;
@@ -85,11 +91,16 @@ int DiskWriteSectorRAW(int dsk, int side, int track, unsigned char sector_id, un
 
 int DiskReadSectorRAW(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect, unsigned char *md) {
   unsigned long blk = DTStoBlock(dsk, side, track, sector_id);
-  printf("%d/%d/%d\n", side, track, sector_id);
-  printf("blk: %d\n", blk);
+//   printf("%d/%d/%d\n", side, track, sector_id);
+//   printf("blk: %d\n", blk);
   if (blk >= NR_DISK_LBA) return 0;
   
-  unsigned long lba = diskLba[disk][blk];
+#ifdef STORE_LBAS
+  unsigned long lba = diskLba[dsk][blk];
+#else
+  FileSeek(&diskFile[dsk], blk);
+  unsigned long lba = FileGetLba(&diskFile[dsk]);
+#endif
   if (lba >= MaxLba()) return 0;
   
   if (!sd_read_sector(lba, sector_buffer)) return 0;
@@ -116,7 +127,12 @@ int DiskWriteSectorRAW(int dsk, int side, int track, unsigned char sector_id, un
   blk = DTStoBlock(dsk, side, track, sector_id);
   if (blk >= NR_DISK_LBA) return 0;
   
+#ifdef STORE_LBAS
   lba = diskLba[dsk][blk];
+#else
+  FileSeek(&diskFile[dsk], blk);
+  lba = FileGetLba(&diskFile[dsk]);
+#endif
   if (lba >= MaxLba()) return 0;
 
   return (lba < MaxLba() && sd_write_sector(lba, sect)) ? 1 : 0;
@@ -124,12 +140,17 @@ int DiskWriteSectorRAW(int dsk, int side, int track, unsigned char sector_id, un
 }
 
 int DiskReadSectorRAW(int dsk, int side, int track, unsigned char sector_id, unsigned char *sect, unsigned char *md) {
-  unsigned long lba, blk;
+  unsigned long blk;
   
   blk = DTStoBlock(dsk, side, track, sector_id);
   if (blk >= NR_DISK_LBA) return 0;
   
-  lba = diskLba[dsk][blk];
+#ifdef STORE_LBAS
+  unsigned long lba = diskLba[dsk][blk];
+#else
+  FileSeek(&diskFile[dsk], blk);
+  unsigned long lba = FileGetLba(&diskFile[dsk]);
+#endif
   if (lba >= MaxLba()) return 0;
 
   md[0] = track;
