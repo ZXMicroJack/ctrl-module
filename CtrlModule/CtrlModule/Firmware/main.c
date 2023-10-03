@@ -15,7 +15,7 @@
 #include "uart.h"
 #include "machinemenu.h"
 
-#ifdef AMSTRADCPC
+#if defined(AMSTRADCPC) || defined(SAMCOUPE)
 #define topmenu diskstatus
 #else
 #define topmenu mainmenu
